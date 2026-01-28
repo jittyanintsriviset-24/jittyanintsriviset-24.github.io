@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Computer Store</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+:root{
+ --bg:#f6f6f6;--card:#fff;--text:#222;
+ --primary:#111;--border:#ddd;
+}
+body{
+ margin:0;font-family:Segoe UI,Arial,sans-serif;
+ background:var(--bg);color:var(--text);
+}
+header{
+ background:var(--primary);color:white;
+ padding:18px;text-align:center;font-size:22px;
+}
+nav{
+ background:#1a1a1a;display:flex;justify-content:center;
+}
+nav button{
+ background:none;border:none;color:white;
+ padding:14px 22px;cursor:pointer;
+}
+nav button:disabled{opacity:.4;}
+
+.page{display:none;padding:24px;}
+.active{display:block;}
+.container{max-width:900px;margin:auto;}
+
+.product{
+ background:var(--card);padding:20px;margin-bottom:16px;
+ border-radius:12px;display:flex;gap:20px;
+ box-shadow:0 6px 20px rgba(0,0,0,.06);
+}
+.emoji{font-size:56px;}
+
+.cart-item{
+ display:grid;
+ grid-template-columns:2fr 1fr 1fr;
+ border-bottom:1px solid var(--border);
+ padding:8px 0;
+ align-items:center;
+}
+.qty-btn{
+ padding:2px 8px;border:1px solid #aaa;
+ background:#fff;cursor:pointer;
+}
+
+.summary{margin-top:16px;}
+.center-btn{display:flex;justify-content:center;margin-top:20px;}
+
+.qr-wrapper{display:flex;justify-content:center;margin:20px 0;}
+.qr-box{
+ background:#fff;padding:20px;border-radius:16px;
+ box-shadow:0 8px 30px rgba(0,0,0,.12);
+ text-align:center;width:260px;
+}
+.qr-box img{width:220px;}
+.qr-warning{margin-top:12px;color:#d9534f;font-size:14px;}
+
+.receipt{
+ max-width:420px;margin:auto;background:#fff;
+ padding:24px;border-radius:12px;
+ box-shadow:0 8px 30px rgba(0,0,0,.15);
+ font-size:14px;
+}
+.receipt h2{text-align:center;}
+.receipt hr{border:none;border-top:1px dashed #aaa;margin:12px 0;}
+.receipt table{width:100%;border-collapse:collapse;}
+.receipt th,.receipt td{padding:6px;}
+.right{text-align:right;}
+
+@media print{
+ nav,button,.qr-wrapper,.qr-warning{display:none;}
+ body{background:#fff;}
+}
+</style>
+</head>
+
+<body>
+
+<script>
+const currentUser = localStorage.getItem("currentUser");
+if(!currentUser) location.href="login.html";
+</script>
+
+<header>
+Computer Store<br>
+<small>ผู้ใช้: <span id="showUser"></span></small>
+</header>
+
+<nav>
+<button onclick="showPage('home')">สินค้า</button>
+<button id="cartBtn" onclick="showPage('cart')" disabled>ตะกร้า</button>
+<button onclick="logout()">Logout</button>
+</nav>
+
+<!-- HOME -->
+<div id="home" class="page active">
+<div class="container">
+<h2>สินค้า</h2>
+<div id="productList"></div>
+</div>
+</div>
+
+<!-- CART -->
+<div id="cart" class="page">
+<div class="container">
+<h2>ตะกร้าสินค้า</h2>
+
+<div class="cart-item" style="font-weight:bold">
+<div>สินค้า</div><div>จำนวน</div><div>ราคา</div>
+</div>
+<div id="cartList"></div>
+
+<div class="summary">
+<p>ราคาก่อน VAT: <span id="sub">0.00</span> บาท</p>
+<p>VAT 7%: <span id="vat">0.00</span> บาท</p>
+<p><b>ราคาหลัง VAT: <span id="total">0.00</span> บาท</b></p>
+</div>
+
+<div class="center-btn">
+<button id="payBtn" onclick="goPay()" disabled>💰 ไปชำระเงิน</button>
+</div>
+</div>
+</div>
+
+<!-- PAY -->
+<div id="pay" class="page">
+<div class="container">
+<h2 style="text-align:center">สรุปการชำระเงิน</h2>
+<div id="paySummary"></div>
+
+<p style="text-align:center">
+<b>ราคาหลัง VAT: <span id="payTotal"></span> บาท</b>
+</p>
+
+<div class="qr-wrapper">
+<div class="qr-box">
+<b>สแกนเพื่อชำระเงิน</b><br><br>
+<img src="https://promptpay.io/0812345678.png">
+<div id="timer" class="qr-warning">⏱️ เวลาที่เหลือ: 05:00</div>
+</div>
+</div>
+
+<div class="center-btn">
+<button onclick="confirmPay()">ยืนยันการชำระเงิน</button>
+</div>
+</div>
+</div>
+
+<!-- RECEIPT -->
+<div id="receipt" class="page">
+<div class="container">
+<div class="receipt">
+<h2>🧾 ใบเสร็จรับเงิน</h2>
+
+<p>เลขที่ใบเสร็จ: <span id="billNo"></span></p>
+<p>วันที่: <span id="billDate"></span></p>
+
+<hr>
+
+<table>
+<thead>
+<tr><th>สินค้า</th><th>จำนวน</th><th class="right">ราคา</th></tr>
+</thead>
+<tbody id="billItems"></tbody>
+</table>
+
+<hr>
+
+<p>ราคาก่อน VAT: <span id="billSub"></span> บาท</p>
+<p>VAT 7%: <span id="billVat"></span> บาท</p>
+<p><b>ราคาหลัง VAT: <span id="billTotal"></span> บาท</b></p>
+
+<div class="center-btn">
+<button onclick="printReceipt()">🖨️ พิมพ์ใบเสร็จ</button>
+</div>
+</div>
+</div>
+</div>
+
+<script>
+showUser.innerText=currentUser;
+
+const PRICE_INCLUDES_VAT = false; // true = ราคาสินค้ารวม VAT แล้ว
+const VAT_RATE = 0.07;
+
+const cartKey="cart_"+currentUser;
+const logKey="order_logs";
+let cart=JSON.parse(localStorage.getItem(cartKey))||[];
+
+const products=[
+ {name:"Mechanical Keyboard",price:1500,emoji:"⌨️"},
+ {name:"Gaming Mouse",price:900,emoji:"🖱️"},
+ {name:"Monitor 24 นิ้ว",price:4500,emoji:"🖥️"},
+ {name:"SSD 512GB",price:2300,emoji:"💾"}
+];
+
+let isPayPage=false;
+let countdown,timeLeft=300;
+
+function calculateVAT(amount){
+ let sub,vat,total;
+ if(PRICE_INCLUDES_VAT){
+  sub = Math.round((amount/(1+VAT_RATE))*100)/100;
+  vat = Math.round((amount-sub)*100)/100;
+  total = amount;
+ }else{
+  sub = amount;
+  vat = Math.round(sub*VAT_RATE*100)/100;
+  total = Math.round((sub+vat)*100)/100;
+ }
+ return {sub,vat,total};
+}
+
+function startTimer(){
+ clearInterval(countdown);
+ timeLeft=300;
+ countdown=setInterval(()=>{
+  let m=Math.floor(timeLeft/60);
+  let s=timeLeft%60;
+  timer.innerText=`⏱️ เวลาที่เหลือ: ${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+  if(timeLeft<=0){
+   clearInterval(countdown);
+   alert("หมดเวลาการชำระเงิน ระบบยกเลิกรายการ");
+   cart=[];
+   save();
+   showPage("home");
+  }
+  timeLeft--;
+ },1000);
+}
+
+function showPage(id){
+ document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+ document.getElementById(id).classList.add("active");
+ isPayPage=(id==="pay");
+ updateCart();
+}
+
+function renderProducts(){
+ productList.innerHTML=products.map(p=>`
+ <div class="product">
+  <div class="emoji">${p.emoji}</div>
+  <div>
+   <b>${p.name}</b><br>${p.price} บาท<br><br>
+   <button onclick="addItem('${p.name}',${p.price})">เพิ่มลงตะกร้า</button>
+  </div>
+ </div>`).join("");
+}
+
+function addItem(name,price){
+ let i=cart.find(x=>x.name===name);
+ if(i)i.qty++; else cart.push({name,price,qty:1});
+ save();
+}
+
+function changeQty(name,delta){
+ if(isPayPage) return;
+ let i=cart.find(x=>x.name===name);
+ i.qty+=delta;
+ if(i.qty<=0) cart=cart.filter(x=>x.name!==name);
+ save();
+}
+
+function updateCart(){
+ let sum=0,html="";
+ cart.forEach(i=>{
+  sum+=i.price*i.qty;
+  html+=`
+  <div class="cart-item">
+   <div>${i.name}</div>
+   <div>${isPayPage? i.qty :
+    `<button class="qty-btn" onclick="changeQty('${i.name}',-1)">−</button>
+     ${i.qty}
+     <button class="qty-btn" onclick="changeQty('${i.name}',1)">+</button>`}
+   </div>
+   <div>${(i.price*i.qty).toFixed(2)}</div>
+  </div>`;
+ });
+ const r=calculateVAT(sum);
+ cartList.innerHTML=html;
+ sub.innerText=r.sub.toFixed(2);
+ vat.innerText=r.vat.toFixed(2);
+ total.innerText=r.total.toFixed(2);
+ payBtn.disabled=sum===0;
+ cartBtn.disabled=sum===0;
+ paySummary.innerHTML=html;
+ payTotal.innerText=r.total.toFixed(2);
+}
+
+function save(){
+ localStorage.setItem(cartKey,JSON.stringify(cart));
+ updateCart();
+}
+
+function goPay(){
+ if(cart.length===0)return;
+ showPage("pay");
+ startTimer();
+}
+
+function confirmPay(){
+ clearInterval(countdown);
+ showPage("receipt");
+
+ const billId="CS"+Date.now();
+ billNo.innerText=billId;
+ billDate.innerText=new Date().toLocaleString();
+
+ let sum=0,rows="";
+ cart.forEach(i=>{
+  sum+=i.price*i.qty;
+  rows+=`<tr><td>${i.name}</td><td>${i.qty}</td><td class="right">${(i.price*i.qty).toFixed(2)}</td></tr>`;
+ });
+ const r=calculateVAT(sum);
+ billItems.innerHTML=rows;
+ billSub.innerText=r.sub.toFixed(2);
+ billVat.innerText=r.vat.toFixed(2);
+ billTotal.innerText=r.total.toFixed(2);
+
+ // log การสั่งซื้อ
+ let logs=JSON.parse(localStorage.getItem(logKey))||[];
+ logs.push({
+  user:currentUser,
+  bill:billId,
+  date:new Date().toLocaleString(),
+  items:cart,
+  total:r.total
+ });
+ localStorage.setItem(logKey,JSON.stringify(logs));
+}
+
+function printReceipt(){
+ window.print();
+ cart=[];
+ save();
+ showPage("home");
+}
+
+function logout(){
+ localStorage.removeItem("currentUser");
+ location.href="login.html";
+}
+
+renderProducts();
+updateCart();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Login | Computer Store</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{
+ margin:0;font-family:Segoe UI,Arial,sans-serif;
+ background:#f7f7f7;
+ display:flex;justify-content:center;align-items:center;
+ height:100vh;
+}
+.card{
+ background:white;width:320px;padding:32px;
+ border-radius:10px;
+ box-shadow:0 10px 25px rgba(0,0,0,.1);
+}
+.card h2{text-align:center;margin-top:0;}
+input{
+ width:100%;padding:12px;margin-bottom:12px;
+ border:1px solid #ddd;border-radius:6px;
+}
+button{
+ width:100%;padding:12px;
+ background:#111;color:white;border:none;
+ border-radius:6px;cursor:pointer;
+}
+p{text-align:center;color:red;font-size:13px;}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+<h2>เข้าสู่ระบบ</h2>
+<input id="user" placeholder="Username">
+<input id="pass" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
+<p id="msg"></p>
+</div>
+
+<script>
+if(localStorage.getItem("currentUser")){
+ window.location.href="shop.html";
+}
+
+let users = JSON.parse(localStorage.getItem("users")) || {};
+
+function login(){
+ if(!user.value || !pass.value){
+  msg.innerText="กรุณากรอกข้อมูล";
+  return;
+ }
+
+ if(!users[user.value]){
+  users[user.value]=pass.value;
+  localStorage.setItem("users",JSON.stringify(users));
+ }
+
+ if(users[user.value]===pass.value){
+  localStorage.setItem("currentUser",user.value);
+  window.location.href="shop.html";
+ }else{
+  msg.innerText="รหัสผ่านไม่ถูกต้อง";
+ }
+}
+</script>
+
+</body>
+</html>
